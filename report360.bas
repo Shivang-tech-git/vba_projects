@@ -62,7 +62,6 @@ DATA_TYPE_col = .Range("1:1").Find("DATA_TYPE", lookat:=xlWhole).Column
 minor_acc_col = .Range("1:1").Find("MINOR_ACCOUNT_TYPE", lookat:=xlWhole).Column
 AC_ANALYSIS_4_FLAG_col = .Range("1:1").Find("AC_ANALYSIS_4_FLAG", lookat:=xlWhole).Column
 ACCOUNT_NAME_col = .Range("1:1").Find("ACCOUNT_NAME", lookat:=xlWhole).Column
-policy_col = .Range("1:1").Find("POLICY", lookat:=xlWhole).Column
 due_date_col = .Range("1:1").Find("DUE_DATE", lookat:=xlWhole).Column
 entry_date_col = .Range("1:1").Find("ENTRY_DATE", lookat:=xlWhole).Column
 
@@ -86,12 +85,10 @@ report_ws_lr = .Cells(Rows.count, 1).End(xlUp).Row
 latest_due_date = DateAdd("d", -30, Date)
 .Range("A1:A1").AutoFilter Field:=due_date_col, Criteria1:=">" & latest_due_date
 report_ws_lr = .Cells(Rows.count, 1).End(xlUp).Row
-If report_ws_lr > 1 Then
 .Range(.Cells(2, report_last_col + 1), .Cells(report_ws_lr, report_last_col + 1)).SpecialCells(xlCellTypeVisible).Value = "To be excluded"
-End If
 ''--------------------------- FILTER FOR MINOR ACCOUNT TYPE, FIN, DUE DATE - ENTRY DATE AND BEFORE 2019 YEAR ---------------------
 .Range("A1:A1").AutoFilter
-.Range("A1:A1").AutoFilter Field:=minor_acc_col, Criteria1:=Array("BKR", "ARI", "DIR", "SPC"), Operator:=xlFilterValues
+.Range("A1:A1").AutoFilter Field:=minor_acc_col, Criteria1:=Array("BKR", "ARI", "DIR", "SPC", "LDR"), Operator:=xlFilterValues
 .Range("A1:A1").AutoFilter Field:=ACCOUNT_NAME_col, Criteria1:="<>FIN *", Operator:=xlFilterValues
 .Range("A1:A1").AutoFilter Field:=report_last_col + 1, Criteria1:="", Operator:=xlFilterValues
 ''---------------------------------------------------------------------------------------------------------------------------------
@@ -104,19 +101,19 @@ For Each cell In visible_rng.SpecialCells(xlCellTypeVisible)
 '.Cells(cell.Row, entry_date_col) = .Cells(cell.Row, entry_date_col)
 
     If DateDiff("d", .Cells(cell.Row, entry_date_col), cell.Value) <= 29 Then
-'        Left(Trim(.Cells(cell.Row, policy_col)), 5) <> "FRA00" Then
-            .Cells(cell.Row, report_last_col + 1) = "Due date error"
+        .Cells(cell.Row, report_last_col + 1) = "Due date error"
     ElseIf Year(.Cells(cell.Row, entry_date_col)) <= 2019 And Year(cell.Value) <= 2019 Then
          .Cells(cell.Row, report_last_col + 1) = "Backlog"
     Else
         .Cells(cell.Row, report_last_col + 1) = "To be reminded"
         .Cells(cell.Row, report_last_col + 2) = DateDiff("d", cell.Value, Date)
     End If
+    
 Next cell
 
 .Range("A1:A1").AutoFilter
 .Range(.Cells(2, report_last_col + 2), .Cells(report_ws_lr, report_last_col + 2)).NumberFormat = "General"
-.Range("1:1").Interior.ColorIndex = 1
+.Range("1:1").Interior.ColorIndex = 6
 .Range("A1").CurrentRegion.Borders.LineStyle = xlContinuous
 .Columns("A:FA").AutoFit
 .Columns(report_last_col).Interior.ColorIndex = 19
@@ -145,6 +142,7 @@ fso.CreateFolder (statement_folder.Path & "\BKR")
 fso.CreateFolder (statement_folder.Path & "\ARI")
 fso.CreateFolder (statement_folder.Path & "\DIR")
 fso.CreateFolder (statement_folder.Path & "\SPC")
+fso.CreateFolder (statement_folder.Path & "\LDR")
 End If
 sFound = Dir(ThisWorkbook.Path & "\*Final Report 360*")    'the first one found
 If sFound <> "" Then
@@ -194,7 +192,7 @@ brokerage = .Range("1:1").Find("GRS_COM_ORG", lookat:=xlWhole).Column
 amt_rem = .Range("1:1").Find("AMOUNT_REMAINING_ORIG", lookat:=xlWhole).Column
 sum_all = .Range("1:1").Find("SUM_ALLOCATED_ORIG", lookat:=xlWhole).Column
 'acc_curr = .Range("1:1").Find("ACCOUNT_CURRENCY", lookat:=xlWhole).Column
-'amt_rem_acc = .Range("1:1").Find("AMOUNT_REMAINING_ACCOUNTING", lookat:=xlWhole).Column
+amt_rem_base = .Range("1:1").Find("AMOUNT_REMAINING_BASE", lookat:=xlWhole).Column
 narrative_col = .Range("1:1").Find("NARRATIVE", lookat:=xlWhole).Column
 reminder_status_col = .Range("1:1").Find("REMINDER TO BE SENT", lookat:=xlWhole).Column
 On Error GoTo 0
@@ -204,7 +202,7 @@ On Error GoTo 0
 acc_code_list = 1
 broker_type_col = 2
 On Error Resume Next
-brokerTypes = Array("SPC", "BKR", "ARI", "DIR")
+brokerTypes = Array("SPC", "BKR", "ARI", "DIR", "LDR")
 sheetNames = Array("FIRST REMINDER", "SECOND REMINDER", "THIRD REMINDER")
 '' ----------------------- first loop for minor account type and second loop for unique email address -----------
 
@@ -267,7 +265,7 @@ other_3_row = 35
         ''-------------- for each row for filtered account code in broker list -------------
         Set visible_range = .Range(.Cells(2, acc_code_360), .Cells(last_row_360, acc_code_360))
         For Each cell In visible_range.SpecialCells(xlCellTypeVisible)
-       '' If .Cells(cell.Row, premium) + .Cells(cell.Row, tax) > 0 Or .Cells(cell.Row, brokerage) > 0 Then
+        
         ''------------ check due days and currency ---------------
         narrative = .Cells(cell.Row, narrative_col).Value
         orig_curr = .Cells(cell.Row, ccy_360).Value
@@ -290,7 +288,7 @@ other_3_row = 35
                                 .Cells(cell.Row, premium) + .Cells(cell.Row, tax) + .Cells(cell.Row, brokerage), _
                                 .Cells(cell.Row, sum_all), _
                                 .Cells(cell.Row, premium) + .Cells(cell.Row, tax) + .Cells(cell.Row, brokerage) - .Cells(cell.Row, sum_all))
-
+                                
 ''---- insert row in first reminder worksheet ------
     If example_template.Worksheets("FIRST REMINDER").Cells(eur_1_row + 2, 1) <> "" Then
         example_template.Worksheets("FIRST REMINDER").Rows(eur_1_row & ":" & eur_1_row + 1).Insert
@@ -355,6 +353,7 @@ other_3_row = 35
             Else
             
                 example_template.Worksheets("SECOND REMINDER").Range("A" & other_2_row & ":R" & other_2_row) = row_per_account
+                example_template.Worksheets("SECOND REMINDER").Cells(other_2_row, 19) = .Cells(cell.Row, amt_rem_base)
                 other_2_row = other_2_row + 1
                 
             End If
@@ -374,6 +373,7 @@ other_3_row = 35
             Else
             
                 example_template.Worksheets("THIRD REMINDER").Range("A" & other_3_row & ":R" & other_3_row) = row_per_account
+                example_template.Worksheets("THIRD REMINDER").Cells(other_3_row, 19) = .Cells(cell.Row, amt_rem_base)
                 other_3_row = other_3_row + 1
                 
             End If
@@ -393,6 +393,7 @@ other_3_row = 35
             Else
             
                 example_template.Worksheets("FIRST REMINDER").Range("A" & other_1_row & ":R" & other_1_row) = row_per_account
+                example_template.Worksheets("FIRST REMINDER").Cells(other_1_row, 19) = .Cells(cell.Row, amt_rem_base)
                 other_1_row = other_1_row + 1
                 
             End If
@@ -402,7 +403,6 @@ other_3_row = 35
         Reminder = ""
         narrative = ""
         orig_curr = ""
-     ''   End If
         Next cell
 
 ''---------------------- Formatting ----------------------
@@ -440,9 +440,9 @@ other_3_row = 35
             sheet.Cells(row_arr(1 + inc), 13) = "Total Prime(s) impayé(s)"
             sheet.Cells(row_arr(2 + inc), 13) = "Total Prime(s) impayé(s)"
         End If
-        row1 = sheet.Cells(row_arr(1 + inc) - 1, 13 + col).End(xlUp).Row
-        row2 = sheet.Cells(row_arr(2 + inc) - 1, 13 + col).End(xlUp).Row
-        For col = 1 To 5
+        row1 = sheet.Cells(row_arr(0 + inc), 13 + col).End(xlDown).Row
+        row2 = sheet.Cells(row_arr(1 + inc), 13 + col).End(xlDown).Row
+        For col = 1 To 6
             If row_arr(0 + inc) >= 16 Then
                sheet.Cells(row_arr(0 + inc), 13 + col) = WorksheetFunction.Sum(sheet.Range(sheet.Cells(15, 13 + col), sheet.Cells(row_arr(0 + inc) - 1, 13 + col)))
             End If
@@ -457,18 +457,12 @@ other_3_row = 35
         Next col
     inc = inc + 3
     Next sheet
-    
-    ''--------------- Date format of example template -------------------
-'    example_template.Worksheets("FIRST REMINDER").Range("D:F").NumberFormat = "MM/DD/YYYY"
-'    example_template.Worksheets("SECOND REMINDER").Range("D:F").NumberFormat = "MM/DD/YYYY"
-'    example_template.Worksheets("THIRD REMINDER").Range("D:F").NumberFormat = "MM/DD/YYYY"
-
     If temp_lang = "French" Then
     example_template.Worksheets("FIRST REMINDER").Name = "1er Relance"
     example_template.Worksheets("SECOND REMINDER").Name = "2eme Relance"
     example_template.Worksheets("THIRD REMINDER").Name = "3eme Relance"
     End If
-
+    
 ''-------------- save broker reminder and go to next broker ---------
         example_template.Save
         example_template.Close
@@ -522,7 +516,7 @@ Set OutApp = CreateObject("Outlook.Application")
 Set fso = New FileSystemObject
 
 ''----------------------- all columns -------------------------------
-brokerTypes = Array("SPC", "BKR", "ARI", "DIR")
+brokerTypes = Array("SPC", "BKR", "ARI", "DIR", "LDR")
 account_code_col = 1
 acc_name_col = 3
 lang_col = 4
