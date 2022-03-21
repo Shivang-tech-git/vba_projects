@@ -11,9 +11,9 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 setup(
-    name = "payments_home",
+    name = "Frames_Home",
     version = "0.1",
     description = "My GUI application!",
     options = {"build_exe": build_exe_options},
-    executables = [Executable(r"C:\Users\\payments_home.py", base=base)]
+    executables = [Executable(r"C:\Users\Frames_Home.py", base=base)]
 )
